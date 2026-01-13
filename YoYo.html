@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>宝宝绘本墙：A-Z 照片版（稳定）</title>
+  <style>
+    :root{
+      --ink: rgba(30,36,46,.88);
+      --paper: rgba(255,250,240,.16);
+      --paper2: rgba(255,250,240,.10);
+    }
+    html,body{height:100%; margin:0; overflow:hidden; background:#081028; font-family: system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;}
+    .bg{ position:fixed; inset:0; background: linear-gradient(135deg,#081028,#0b2a33); }
+    .page{
+      position:fixed; inset:14px;
+      border-radius: 28px;
+      background: linear-gradient(135deg,var(--paper),var(--paper2));
+      border: 2px solid rgba(255,255,255,.14);
+      box-shadow: 0 18px 40px rgba(0,0,0,.28);
+      overflow:hidden;
+    }
+    .page::before{
+      content:"";
+      position:absolute; inset:0;
+      background-image:
+        radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px),
+        radial-gradient(rgba(0,0,0,.10) 1px, transparent 1px);
+      background-size: 18px 18px, 22px 22px;
+      background-position: 0 0, 9px 11px;
+      opacity:.10;
+      pointer-events:none;
+    }
+    .cornerTag{
+      position:absolute; right:14px; bottom:14px;
+      padding:10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.18);
+      border: 2px solid rgba(30,36,46,.18);
+      color: rgba(30,36,46,.78);
+      font-weight:700;
+      user-select:none;
+      pointer-events:none;
+      z-index:5;
+    }
+
+    .hud{
+      position:fixed; left:12px; right:12px; top:12px;
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      z-index:20; pointer-events:none;
+    }
+    .pill, .progressWrap{
+      pointer-events:auto;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.18);
+      color:rgba(255,255,255,.92);
+      padding:10px 12px;
+      border-radius:999px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      user-select:none; -webkit-user-select:none;
+    }
+    .pill button{
+      appearance:none; border:none;
+      background:rgba(255,255,255,.14);
+      color:rgba(255,255,255,.92);
+      padding:10px 12px;
+      border-radius:999px;
+      font-size:14px; font-weight:700;
+      cursor:pointer;
+    }
+    .pill button:active{ transform:scale(.98); }
+    .pill label{ font-size:14px; opacity:.95; }
+    .pill input[type="range"]{ width:120px; }
+
+    .progressWrap{ min-width:220px; }
+    .bar{ height:10px; flex:1; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.14); border-radius:999px; overflow:hidden; }
+    .bar>i{ display:block; height:100%; width:0%; background:rgba(255,255,255,.55); border-radius:999px; transition:width .25s ease; }
+    .count{ font-size:13px; opacity:.95; white-space:nowrap; }
+
+    .hint{
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center; flex-direction:column;
+      color:rgba(255,255,255,.82);
+      text-align:center;
+      font-size:20px; line-height:1.4;
+      padding:24px;
+      text-shadow:0 10px 30px rgba(0,0,0,.35);
+      transition:opacity .35s ease;
+      pointer-events:none;
+      z-index:15;
+    }
+    .hint.hidden{ opacity:0; }
+    .hint small{ opacity:.8; font-size:14px; margin-top:10px; }
+
+    .badge{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.16);
+      color:rgba(255,255,255,.9);
+      padding:10px 14px;
+      border-radius:999px;
+      font-size:14px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      opacity:0;
+      transition: opacity .25s ease;
+      pointer-events:none;
+      max-width: 92vw;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      z-index:20;
+    }
+    .badge.show{ opacity:1; }
+
+    .grid{
+      position:absolute;
+      left:22px; right:22px; top:86px; bottom:66px;
+      display:grid;
+      grid-template-columns: repeat(6, minmax(0,1fr));
+      grid-template-rows: repeat(5, minmax(0,1fr));
+      gap: 16px;
+      padding: 10px;
+    }
+
+    .slot{
+      position:relative;
+      border-radius: 22px;
+      border:2px dashed rgba(30,36,46,.18);
+      background: rgba(255,255,255,.02);
+      overflow:visible;
+    }
+
+    .card{
+      position:absolute; inset:0;
+      border-radius: 22px;
+      background: rgba(255,255,255,.10);
+      border: 3px solid rgba(255,255,255,.22);
+      box-shadow: 0 16px 26px rgba(0,0,0,.26);
+      overflow:hidden;
+      display:none;
+      cursor:pointer;
+    }
+    .card.show{ display:block; }
+
+    .cardInner{
+      position:absolute; inset:10px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,.22);
+      overflow:hidden;
+      background: rgba(255,255,255,.06);
+      inset:6px;
+    }
+
+    .photo{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit: cover;
+      z-index:1;
+      transform: scale(1.06);
+    }
+
+    .missingMsg{
+      position:absolute; inset:0;
+      z-index:2;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      white-space:pre-wrap;
+      text-align:left;
+      font-weight:800;
+      color: rgba(30,36,46,.78);
+      background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.08));
+    }
+    .missingMsg.show{ display:flex; }
+
+    .letterTag{
+      position:absolute; left:10px; top:10px;
+      padding:8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.62);
+      border: 2px solid rgba(30,36,46,.28);
+      color: rgba(30,36,46,.86);
+      font-weight:900;
+      min-width: 44px;
+      text-align:center;
+      z-index:3;
+    }
+
+    .nameTag{
+      position:absolute; left:14%; right:14%; bottom:10px;
+      padding:8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.62);
+      border: 2px solid rgba(30,36,46,.28);
+      color: rgba(30,36,46,.86);
+      font-weight:800;
+      text-align:center;
+      font-size: 14px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      z-index:3;
+    }
+
+    .tape{
+      position:absolute; top:-8px; left:10px;
+      width:34%; height:16px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.26);
+      border: 2px solid rgba(30,36,46,.16);
+      transform: rotate(-2deg);
+      pointer-events:none;
+      z-index:3;
+    }
+    .tape.r{
+      left:auto; right:10px;
+      transform: rotate(4deg);
+      width:30%;
+      background: rgba(255,255,255,.20);
+    }
+
+    /* === 动画/高亮 === */
+.card{
+  transform: scale(1);
+  transition: transform 220ms ease, filter 220ms ease, opacity 220ms ease;
+  will-change: transform, filter, opacity;
+}
+
+/* 新贴卡：轻轻放大弹一下 */
+.card.pop{
+  animation: popIn 520ms cubic-bezier(.2, .9, .2, 1) both;
+}
+@keyframes popIn{
+  0%   { transform: scale(.92); }
+  55%  { transform: scale(1.06); }
+  100% { transform: scale(1.00); }
+}
+
+/* 当前高亮，其它变暗一点 */
+.grid.dim .card.show{
+  opacity: .55;
+  filter: saturate(.95) brightness(.92);
+}
+.grid.dim .card.show.active{
+  opacity: 1;
+  filter: none;
+  transform: scale(1.04);
+  box-shadow: 0 20px 40px rgba(0,0,0,.35);
+  border-color: rgba(255,255,255,.35);
+}
+
+/* 点击卡片：临时放大 1.2x */
+.card.zoom{
+  transform: scale(1.20) !important;
+  z-index: 50;
+}
+
+/* 让居中滚动更顺滑 */
+.page { overflow: hidden; }
+.grid{
+  overflow:auto;
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px;
+}
+
+
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="page">
+    <div class="cornerTag">绘本页</div>
+
+    <div class="grid" id="grid">
+      <!-- 26 个槽位（写死 DOM，保证永远有 img） -->
+      <script>
+        // 这里用脚本“写死生成”静态DOM：生成后就是纯HTML结构，稳定不丢 img
+        document.write(Array.from({length:26}, (_,i)=>{
+          const L = String.fromCharCode(65+i);
+          return `
+            <div class="slot">
+              <div class="card" id="card-${L}" data-letter="${L}">
+                <div class="cardInner">
+                  <img class="photo" id="img-${L}" alt="${L}">
+                  <div class="missingMsg" id="msg-${L}"></div>
+                </div>
+                <div class="letterTag">${L}</div>
+                <div class="nameTag" id="name-${L}">${L}</div>
+                <div class="tape"></div>
+                <div class="tape r"></div>
+              </div>
+            </div>
+          `;
+        }).join(''));
+      </script>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="pill">
+      <button id="resetBtn" type="button" title="清屏 (Esc)">清屏</button>
+      <button id="soundBtn" type="button">拟声：开</button>
+      <button id="voiceBtn" type="button">介绍：开</button>
+    </div>
+
+    <div class="progressWrap">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="count" id="countText">0/26</div>
+    </div>
+
+    <div class="pill">
+      <label>音量</label>
+      <input id="vol" type="range" min="0" max="100" value="55" />
+    </div>
+  </div>
+
+  <div id="hint" class="hint">
+    👶 点一下页面获得焦点<br/>按键盘 A～Z 贴照片卡；再按同字母会“翻页”（你只有 1 张就重复显示）
+    <small>也可以点卡片听介绍；Esc 清屏；刷新会保留</small>
+  </div>
+
+  <div id="badge" class="badge">A - 小狗</div>
+
+<script>
+(() => {
+  const hint = document.getElementById('hint');
+  const badge = document.getElementById('badge');
+  const barFill = document.getElementById('barFill');
+  const countText = document.getElementById('countText');
+  const volEl = document.getElementById('vol');
+  const grid = document.getElementById('grid');
+
+  const Animals = {
+    A:{ name:'小狗', intro:'我是人类的朋友，我是狗狗！' },
+    B:{ name:'小猫', intro:'我会抓老鼠，也爱撒娇，我是小猫咪！' },
+    C:{ name:'小兔', intro:'我跑得快，耳朵长长，我是小兔子！' },
+    D:{ name:'小熊', intro:'我胖乎乎很温柔，我是小熊！' },
+    E:{ name:'小狐狸', intro:'我聪明机灵，尾巴大大，我是小狐狸！' },
+    F:{ name:'小熊猫', intro:'我爱竹子，圆滚滚，我是小熊猫！' },
+    G:{ name:'小青蛙', intro:'我会跳跳，也会游泳，我是小青蛙！' },
+    H:{ name:'小猪', intro:'我爱吃也爱睡，我是小猪猪！' },
+    I:{ name:'小狮子', intro:'我是草原小王子，我是小狮子！' },
+    J:{ name:'小老虎', intro:'我有条纹，勇敢又帅，我是小老虎！' },
+    K:{ name:'小牛', intro:'我会慢慢走，也会吃草，我是小牛！' },
+    L:{ name:'长颈鹿', intro:'我脖子长长，能吃到高高的叶子！' },
+    M:{ name:'小猴', intro:'我会爬树爱玩耍，我是小猴子！' },
+    N:{ name:'小企鹅', intro:'我穿小西装，摇摇摆摆，我是小企鹅！' },
+    O:{ name:'猫头鹰', intro:'我晚上更精神，我是猫头鹰！' },
+    P:{ name:'小鸭子', intro:'我会游泳嘎嘎叫，我是小鸭子！' },
+    Q:{ name:'小刺猬', intro:'我有小刺刺，但我很可爱，我是小刺猬！' },
+    R:{ name:'小河马', intro:'我在水里泡澡最开心，我是小河马！' },
+    S:{ name:'小海豹', intro:'我会顶球，也爱鼓掌，我是小海豹！' },
+    T:{ name:'小象', intro:'我鼻子长长会喷水，我是小象！' },
+    U:{ name:'独角兽', intro:'我有小角角，像童话一样，我是独角兽！' },
+    V:{ name:'小鲸鱼', intro:'我在海里唱歌，我是小鲸鱼！' },
+    W:{ name:'小乌龟', intro:'我走得慢，但很努力，我是小乌龟！' },
+    X:{ name:'斑马', intro:'我有黑白条纹，我是斑马！' },
+    Y:{ name:'小鱼', intro:'我在水里吐泡泡，我是小鱼！' },
+    Z:{ name:'小恐龙', intro:'我是远古小伙伴，我是小恐龙！' },
+  };
+
+  const STORE_KEY = 'storybook_photo_wall_static_v1';
+  const state = { cards:{}, soundOn:true, voiceOn:true };
+
+  function updateProgress(){
+    const c = Object.keys(state.cards).length;
+    countText.textContent = `${c}/26`;
+    barFill.style.width = `${Math.round((c/26)*100)}%`;
+    if(c>0) hint.classList.add('hidden'); else hint.classList.remove('hidden');
+  }
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || typeof data!=='object') return;
+      state.cards = data.cards || {};
+      state.soundOn = data.soundOn !== false;
+      state.voiceOn = data.voiceOn !== false;
+    }catch(e){}
+  }
+  function clearAll(){
+    state.cards = {};
+    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  }
+
+  // 拟声
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function gainVal(){ return (Number(volEl.value)/100) * 0.12; }
+  function playSfx(letter){
+    if(!state.soundOn) return;
+    ensureAudio();
+    const t0 = audioCtx.currentTime;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gainVal(), t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    g.connect(audioCtx.destination);
+
+    const o = audioCtx.createOscillator();
+    o.type = 'sine';
+    const idx = (letter.charCodeAt(0)-65+26)%26;
+    const base = 260 + idx * 8;
+    o.frequency.setValueAtTime(base+240, t0);
+    o.frequency.exponentialRampToValueAtTime(base+140, t0+0.12);
+    o.frequency.exponentialRampToValueAtTime(base+200, t0+0.26);
+    o.connect(g);
+    o.start(t0);
+    o.stop(t0+0.30);
+  }
+
+  // 语音介绍
+  function speak(text){
+    if(!state.voiceOn) return;
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      u.rate = 0.95;
+      u.pitch = 1.15;
+      u.volume = Math.min(1, Math.max(0, Number(volEl.value)/100));
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  // 核心：设置图片（只用 images/X1.jpg）
+  function setCard(letter){
+    const info = Animals[letter];
+    if(!info) return;
+
+    const card = document.getElementById(`card-${letter}`);
+    const img  = document.getElementById(`img-${letter}`);
+    const msg  = document.getElementById(`msg-${letter}`);
+    const name = document.getElementById(`name-${letter}`);
+    if(!card || !img || !msg || !name) return;
+
+    card.classList.add('show');
+    name.textContent = info.name;
+
+    // 点击卡片也可读
+    card.onclick = () => { playSfx(letter); speak(info.intro); };
+
+    msg.classList.remove('show');
+    img.style.display = '';
+
+    const url = `images/${letter}1.jpg?v=${Date.now()}`;
+    img.onload = () => {
+      msg.classList.remove('show');
+      img.style.display = '';
+    };
+    img.onerror = () => {
+      img.style.display = 'none';
+      msg.textContent = `找不到图片：images/${letter}1.jpg\n请确认 images 文件夹与 YoYo.html 同级\n且文件名是 ${letter}1.jpg（大写）`;
+      msg.classList.add('show');
+    };
+    img.src = url;
+  }
+
+  function setCard(letter, isNew=false){
+  const info = Animals[letter];
+  if(!info) return;
+
+  const card = document.getElementById(`card-${letter}`);
+  const img  = document.getElementById(`img-${letter}`);
+  const msg  = document.getElementById(`msg-${letter}`);
+  const name = document.getElementById(`name-${letter}`);
+  if(!card || !img || !msg || !name) return;
+
+  card.classList.add('show');
+  name.textContent = info.name;
+
+  // 高亮逻辑：设置 active，并让其它卡片变暗
+  document.querySelectorAll('.card.active').forEach(el => el.classList.remove('active'));
+  card.classList.add('active');
+  grid.classList.add('dim');
+
+  // 自动居中（滚动到卡片位置）
+  card.scrollIntoView({ behavior:'smooth', block:'center', inline:'center' });
+
+  // 新贴卡片：弹一下
+  if (isNew) {
+    card.classList.remove('pop');
+    // 触发重启动画
+    void card.offsetWidth;
+    card.classList.add('pop');
+    setTimeout(()=>card.classList.remove('pop'), 650);
+  }
+
+  // 点击卡片：临时放大 + 读介绍（含拟声）
+  card.onclick = () => {
+    // zoom 动画
+    card.classList.add('zoom');
+    setTimeout(()=>card.classList.remove('zoom'), 320);
+
+    playSfx(letter);
+    speak(info.intro);
+
+    // 点击也作为当前高亮
+    document.querySelectorAll('.card.active').forEach(el => el.classList.remove('active'));
+    card.classList.add('active');
+    grid.classList.add('dim');
+    card.scrollIntoView({ behavior:'smooth', block:'center', inline:'center' });
+  };
+
+  // 图片加载（只用 images/X1.jpg）
+  msg.classList.remove('show');
+  img.style.display = '';
+
+  const url = `images/${letter}1.jpg?v=${Date.now()}`;
+  img.onload = () => {
+    msg.classList.remove('show');
+    img.style.display = '';
+  };
+  img.onerror = () => {
+    img.style.display = 'none';
+    msg.textContent = `找不到图片：images/${letter}1.jpg\n请确认 images 文件夹与 YoYo.html 同级\n且文件名是 ${letter}1.jpg（大写）`;
+    msg.classList.add('show');
+  };
+  img.src = url;
+}
+
+  function spawnOrFlip(letter){
+    const info = Animals[letter];
+    if(!info) return;
+
+    const isNew = !state.cards[letter];
+    if(isNew) state.cards[letter] = { shown:true };
+
+    setCard(letter, isNew);
+
+    playSfx(letter);
+    badge.textContent = `${letter} - ${info.name}`;
+    badge.classList.add('show');
+    clearTimeout(badge._t);
+    badge._t = setTimeout(()=>badge.classList.remove('show'), 900);
+
+    speak(info.intro);
+    save();
+    updateProgress();
+  }
+
+
+  // 恢复已保存
+  function restore(){
+    for(const letter in state.cards){
+      if(Animals[letter]) setCard(letter);
+    }
+    updateProgress();
+  }
+
+  // 键盘
+  let lastKeyAt = 0;
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      clearAll();
+      for(let i=0;i<26;i++){
+        const L = String.fromCharCode(65+i);
+        document.getElementById(`card-${L}`).classList.remove('show');
+      }
+      updateProgress();
+      return;
+    }
+    const now = performance.now();
+    if (now - lastKeyAt < 90) return;
+    lastKeyAt = now;
+
+    const L = (e.key || '').toUpperCase();
+    if (L.length === 1 && L >= 'A' && L <= 'Z') spawnOrFlip(L);
+  }, { passive:false });
+
+  // 按钮
+  const soundBtn = document.getElementById('soundBtn');
+  const voiceBtn = document.getElementById('voiceBtn');
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    clearAll();
+    for(let i=0;i<26;i++){
+      const L = String.fromCharCode(65+i);
+      document.getElementById(`card-${L}`).classList.remove('show');
+    }
+    updateProgress();
+    try{ speechSynthesis.cancel(); }catch(e){}
+  });
+
+  soundBtn.addEventListener('click', () => {
+    state.soundOn = !state.soundOn;
+    soundBtn.textContent = state.soundOn ? '拟声：开' : '拟声：关';
+    save();
+  });
+
+  voiceBtn.addEventListener('click', () => {
+    state.voiceOn = !state.voiceOn;
+    voiceBtn.textContent = state.voiceOn ? '介绍：开' : '介绍：关';
+    if(!state.voiceOn){ try{ speechSynthesis.cancel(); }catch(e){} }
+    save();
+  });
+
+  // 启动
+  load();
+  soundBtn.textContent = state.soundOn ? '拟声：开' : '拟声：关';
+  voiceBtn.textContent = state.voiceOn ? '介绍：开' : '介绍：关';
+  restore();
+})();
+</script>
+</body>
+</html>
